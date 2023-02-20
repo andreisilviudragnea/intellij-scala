@@ -3,8 +3,9 @@ package org.jetbrains.plugins.scala.codeInspection.syntacticSimplification
 import com.intellij.codeInspection.{LocalInspectionTool, ProblemHighlightType, ProblemsHolder}
 import org.jetbrains.plugins.scala.ScalaBundle
 import org.jetbrains.plugins.scala.codeInspection.PsiElementVisitorSimple
+import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.getNameFrom
 import org.jetbrains.plugins.scala.extensions.PsiElementExt
-import org.jetbrains.plugins.scala.lang.psi.api.base.{ScConstructorInvocation, ScPrimaryConstructor}
+import org.jetbrains.plugins.scala.lang.psi.api.base.{ScConstructorInvocation, ScPrimaryConstructor, ScReference}
 import org.jetbrains.plugins.scala.lang.psi.api.expr.{ScExpression, ScMethodCall, ScNewTemplateDefinition, ScReferenceExpression}
 import org.jetbrains.plugins.scala.lang.psi.api.statements.{ScFunctionDefinition, ScTypeAlias}
 import org.jetbrains.plugins.scala.lang.psi.api.toplevel.templates.ScTemplateParents
@@ -19,6 +20,38 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
       if (hasRedundantNew(newTemplate)) {
         holder.registerProblem(newTemplate.getFirstChild, ScalaBundle.message("new.on.case.class.instantiation.redundant"),
           ProblemHighlightType.LIKE_UNUSED_SYMBOL, new RemoveNewQuickFix(newTemplate))
+      }
+    case element: ScReference =>
+      element.multiResolveScala(false).map { scalaResolveResult =>
+        val importsUsed = scalaResolveResult.importsUsed
+        if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+          val importUsed = importsUsed.iterator.next()
+          val qualName = importUsed.importExpr.get.qualifier.get.qualName
+          val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
+          holder.registerProblem(
+            element,
+            s"Wildcard import $importText for expression ${element.getText}",
+            ProblemHighlightType.WARNING,
+            new AddExplicitImportQuickFix(element)
+          )
+        }
+      }
+    case element: ScExpression =>
+      element.implicitConversion() match {
+        case Some(scalaResolveResult) =>
+          val importsUsed = scalaResolveResult.importsUsed
+          if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+            val importUsed = importsUsed.iterator.next()
+            val qualName = importUsed.importExpr.get.qualifier.get.qualName
+            val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
+            holder.registerProblem(
+              element,
+              s"Implicit conversion $importText for expression ${element.getText}",
+              ProblemHighlightType.WARNING,
+              new AddImplicitConversionImportQuickFix(element)
+            )
+          }
+        case None =>
       }
     case _ =>
   }
