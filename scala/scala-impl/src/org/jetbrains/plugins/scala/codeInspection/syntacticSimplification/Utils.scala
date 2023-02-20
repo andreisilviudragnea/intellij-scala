@@ -11,7 +11,8 @@ object Utils {
       case Some(resolveResult) => s"$qualName.${resolveResult.name}"
       case None =>
         GlobalImplicitInstance.from(scalaResolveResult) match {
-          case Some(globalImplicitInstance) => globalImplicitInstance.pathToOwner
+          case Some(globalImplicitInstance) =>
+            s"${globalImplicitInstance.pathToOwner}.${globalImplicitInstance.member.getName}"
           case None => s"$qualName.${scalaResolveResult.name}"
         }
     }

@@ -4,6 +4,7 @@ import com.intellij.codeInspection.{LocalInspectionTool, ProblemHighlightType, P
 import org.jetbrains.plugins.scala.ScalaBundle
 import org.jetbrains.plugins.scala.codeInspection.PsiElementVisitorSimple
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddExplicitImportQuickFix.explicitImportText
+import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddImplicitArgumentImportQuickFix.withImplicits
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.getNameFrom
 import org.jetbrains.plugins.scala.extensions.PsiElementExt
 import org.jetbrains.plugins.scala.lang.psi.api.ImplicitArgumentsOwner
@@ -71,15 +72,17 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
   private def processImplicitArgumentsOwner(element: ImplicitArgumentsOwner, holder: ProblemsHolder): Unit = {
     element.findImplicitArguments match {
       case Some(scalaResolveResults) => scalaResolveResults.foreach { scalaResolveResult =>
-        val importsUsed = scalaResolveResult.importsUsed
-        if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-          val importText = getNameFrom(scalaResolveResult)
-          holder.registerProblem(
-            element,
-            s"Implicit argument import $importText for expression ${element.getText}",
-            ProblemHighlightType.WARNING,
-            new AddImplicitArgumentImportQuickFix(element)
-          )
+        withImplicits(scalaResolveResult).foreach { result =>
+          val importsUsed = result.importsUsed
+          if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+            val importText = getNameFrom(result)
+            holder.registerProblem(
+              element,
+              s"Implicit argument import $importText for expression ${element.getText}",
+              ProblemHighlightType.WARNING,
+              new AddImplicitArgumentImportQuickFix(element)
+            )
+          }
         }
       }
       case None =>
