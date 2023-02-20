@@ -15,10 +15,7 @@ class AddImplicitConversionImportQuickFix(expression: ScExpression) extends Abst
       case Some(scalaResolveResult) =>
         val importsUsed = scalaResolveResult.importsUsed
         if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-          val importUsed = importsUsed.iterator.next()
-          val qualName = importUsed.importExpr.get.qualifier.get.qualName
-          val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
-          ScImportsHolder(element).addImportForPath(importText)
+          ScImportsHolder(element).addImportForPath(getNameFrom(scalaResolveResult))
 //          executeWriteActionCommand("Add import for implicit conversion") {
 //            if (element.isValid) {
 //

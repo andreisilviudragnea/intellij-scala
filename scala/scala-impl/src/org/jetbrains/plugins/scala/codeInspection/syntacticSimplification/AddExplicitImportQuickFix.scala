@@ -13,13 +13,10 @@ import org.jetbrains.plugins.scala.lang.psi.api.base.ScReference
 
 class AddExplicitImportQuickFix(reference: ScReference) extends AbstractFixOnPsiElement("Add explicit import", reference) {
   override protected def doApplyFix(element: ScReference)(implicit project: Project): Unit = {
-    element.multiResolveScala(false).map { scalaResolveResult =>
+    element.multiResolveScala(false).foreach { scalaResolveResult =>
       val importsUsed = scalaResolveResult.importsUsed
       if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-        val importUsed = importsUsed.iterator.next()
-        val qualName = importUsed.importExpr.get.qualifier.get.qualName
-        val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
-        ScImportsHolder(element).addImportForPath(importText)
+        ScImportsHolder(element).addImportForPath(getNameFrom(scalaResolveResult))
 //        executeWriteActionCommand("Add explicit import") {
 //          if (element.isValid) {
 //

@@ -5,6 +5,8 @@ import org.jetbrains.plugins.scala.ScalaBundle
 import org.jetbrains.plugins.scala.codeInspection.PsiElementVisitorSimple
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.getNameFrom
 import org.jetbrains.plugins.scala.extensions.PsiElementExt
+import org.jetbrains.plugins.scala.lang.psi.ScImportsHolder
+import org.jetbrains.plugins.scala.lang.psi.api.ImplicitArgumentsOwner
 import org.jetbrains.plugins.scala.lang.psi.api.base.{ScConstructorInvocation, ScPrimaryConstructor, ScReference}
 import org.jetbrains.plugins.scala.lang.psi.api.expr.{ScExpression, ScMethodCall, ScNewTemplateDefinition, ScReferenceExpression}
 import org.jetbrains.plugins.scala.lang.psi.api.statements.{ScFunctionDefinition, ScTypeAlias}
@@ -21,39 +23,68 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
         holder.registerProblem(newTemplate.getFirstChild, ScalaBundle.message("new.on.case.class.instantiation.redundant"),
           ProblemHighlightType.LIKE_UNUSED_SYMBOL, new RemoveNewQuickFix(newTemplate))
       }
+    case element: ScReferenceExpression =>
+      processReference(element, holder)
+      processExpression(element, holder)
+      processImplicitArgumentsOwner(element, holder)
     case element: ScReference =>
-      element.multiResolveScala(false).map { scalaResolveResult =>
+      processReference(element,holder)
+    case element: ScExpression =>
+      processExpression(element, holder)
+      processImplicitArgumentsOwner(element, holder)
+    case element: ImplicitArgumentsOwner =>
+      processImplicitArgumentsOwner(element, holder)
+    case _ =>
+  }
+
+  private def processReference(element: ScReference, holder: ProblemsHolder): Unit = {
+    element.multiResolveScala(false).foreach { scalaResolveResult =>
+      val importsUsed = scalaResolveResult.importsUsed
+      if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+        val importText = getNameFrom(scalaResolveResult)
+        holder.registerProblem(
+          element,
+          s"Wildcard import $importText for expression ${element.getText}",
+          ProblemHighlightType.WARNING,
+          new AddExplicitImportQuickFix(element)
+        )
+      }
+    }
+  }
+
+  private def processExpression(element: ScExpression, holder: ProblemsHolder): Unit = {
+    element.implicitConversion() match {
+      case Some(scalaResolveResult) =>
         val importsUsed = scalaResolveResult.importsUsed
         if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-          val importUsed = importsUsed.iterator.next()
-          val qualName = importUsed.importExpr.get.qualifier.get.qualName
-          val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
+          val importText = getNameFrom(scalaResolveResult)
           holder.registerProblem(
             element,
-            s"Wildcard import $importText for expression ${element.getText}",
+            s"Implicit conversion $importText for expression ${element.getText}",
             ProblemHighlightType.WARNING,
-            new AddExplicitImportQuickFix(element)
+            new AddImplicitConversionImportQuickFix(element)
+          )
+        }
+      case None =>
+    }
+  }
+
+  private def processImplicitArgumentsOwner(element: ImplicitArgumentsOwner, holder: ProblemsHolder): Unit = {
+    element.findImplicitArguments match {
+      case Some(scalaResolveResults) => scalaResolveResults.foreach { scalaResolveResult =>
+        val importsUsed = scalaResolveResult.importsUsed
+        if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+          val importText = getNameFrom(scalaResolveResult)
+          holder.registerProblem(
+            element,
+            s"Implicit argument import $importText for expression ${element.getText}",
+            ProblemHighlightType.WARNING,
+            new AddImplicitArgumentImportQuickFix(element)
           )
         }
       }
-    case element: ScExpression =>
-      element.implicitConversion() match {
-        case Some(scalaResolveResult) =>
-          val importsUsed = scalaResolveResult.importsUsed
-          if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-            val importUsed = importsUsed.iterator.next()
-            val qualName = importUsed.importExpr.get.qualifier.get.qualName
-            val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
-            holder.registerProblem(
-              element,
-              s"Implicit conversion $importText for expression ${element.getText}",
-              ProblemHighlightType.WARNING,
-              new AddImplicitConversionImportQuickFix(element)
-            )
-          }
-        case None =>
-      }
-    case _ =>
+      case None =>
+    }
   }
 
   private def hasRedundantNew(newTemplate: ScNewTemplateDefinition): Boolean = {
