@@ -3,9 +3,9 @@ package org.jetbrains.plugins.scala.codeInspection.syntacticSimplification
 import com.intellij.codeInspection.{LocalInspectionTool, ProblemHighlightType, ProblemsHolder}
 import org.jetbrains.plugins.scala.ScalaBundle
 import org.jetbrains.plugins.scala.codeInspection.PsiElementVisitorSimple
+import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddExplicitImportQuickFix.explicitImportText
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.getNameFrom
 import org.jetbrains.plugins.scala.extensions.PsiElementExt
-import org.jetbrains.plugins.scala.lang.psi.ScImportsHolder
 import org.jetbrains.plugins.scala.lang.psi.api.ImplicitArgumentsOwner
 import org.jetbrains.plugins.scala.lang.psi.api.base.{ScConstructorInvocation, ScPrimaryConstructor, ScReference}
 import org.jetbrains.plugins.scala.lang.psi.api.expr.{ScExpression, ScMethodCall, ScNewTemplateDefinition, ScReferenceExpression}
@@ -41,10 +41,9 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
     element.multiResolveScala(false).foreach { scalaResolveResult =>
       val importsUsed = scalaResolveResult.importsUsed
       if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-        val importText = getNameFrom(scalaResolveResult)
         holder.registerProblem(
           element,
-          s"Wildcard import $importText for expression ${element.getText}",
+          s"Wildcard import ${explicitImportText(scalaResolveResult)} for expression ${element.getText}",
           ProblemHighlightType.WARNING,
           new AddExplicitImportQuickFix(element)
         )

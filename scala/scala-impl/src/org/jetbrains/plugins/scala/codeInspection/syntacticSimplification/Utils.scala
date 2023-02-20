@@ -1,7 +1,6 @@
 package org.jetbrains.plugins.scala.codeInspection.syntacticSimplification
 
 import org.jetbrains.plugins.scala.autoImport.GlobalImplicitInstance
-import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.ScObject
 import org.jetbrains.plugins.scala.lang.resolve.ScalaResolveResult
 
 object Utils {
@@ -13,10 +12,7 @@ object Utils {
       case None =>
         GlobalImplicitInstance.from(scalaResolveResult) match {
           case Some(globalImplicitInstance) => globalImplicitInstance.pathToOwner
-          case None => scalaResolveResult.name match {
-            case "apply" | "unapply" => s"$qualName.${scalaResolveResult.parentElement.get.asInstanceOf[ScObject].name}"
-            case name => s"$qualName.$name"
-          }
+          case None => s"$qualName.${scalaResolveResult.name}"
         }
     }
   }
