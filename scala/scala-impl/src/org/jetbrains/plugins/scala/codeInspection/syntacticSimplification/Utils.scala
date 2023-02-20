@@ -8,7 +8,7 @@ object Utils {
     scalaResolveResult.implicitConversion match {
       case Some(resolveResult) => resolveResult.name
       case None => scalaResolveResult.name match {
-        case "apply" => scalaResolveResult.parentElement.get.asInstanceOf[ScObject].name
+        case "apply" | "unapply" => scalaResolveResult.parentElement.get.asInstanceOf[ScObject].name
         case name => name
       }
     }

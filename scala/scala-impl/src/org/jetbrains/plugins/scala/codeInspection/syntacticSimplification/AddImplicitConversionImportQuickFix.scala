@@ -18,11 +18,12 @@ class AddImplicitConversionImportQuickFix(expression: ScExpression) extends Abst
           val importUsed = importsUsed.iterator.next()
           val qualName = importUsed.importExpr.get.qualifier.get.qualName
           val importText = s"$qualName.${getNameFrom(scalaResolveResult)}"
-          executeWriteActionCommand("Add import for implicit conversion") {
-            if (element.isValid) {
-              ScImportsHolder(element).addImportForPath(importText)
-            }
-          }
+          ScImportsHolder(element).addImportForPath(importText)
+//          executeWriteActionCommand("Add import for implicit conversion") {
+//            if (element.isValid) {
+//
+//            }
+//          }
 //          val scalaFile = element.getContainingFile.asInstanceOf[ScalaFile]
 //          ScalaImportOptimizer.findOptimizerFor(scalaFile).get.processFile(scalaFile).run()
         }
