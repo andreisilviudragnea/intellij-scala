@@ -41,6 +41,8 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
   private def processReference(element: ScReference, holder: ProblemsHolder): Unit = {
     element.multiResolveScala(false).foreach { scalaResolveResult =>
       val importsUsed = scalaResolveResult.importsUsed
+      // TODO: Revise this condition
+      // TODO: Fix still failing import expansions
       if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
         holder.registerProblem(
           element,
