@@ -7,6 +7,7 @@ import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddExp
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddImplicitArgumentImportQuickFix.withImplicits
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.{getNameFrom, usesImportWithWildcard}
 import org.jetbrains.plugins.scala.extensions.PsiElementExt
+import org.jetbrains.plugins.scala.lang.psi.ScImportsHolder
 import org.jetbrains.plugins.scala.lang.psi.api.ImplicitArgumentsOwner
 import org.jetbrains.plugins.scala.lang.psi.api.base.{ScConstructorInvocation, ScPrimaryConstructor, ScReference}
 import org.jetbrains.plugins.scala.lang.psi.api.expr.{ScExpression, ScMethodCall, ScNewTemplateDefinition, ScReferenceExpression}
@@ -55,13 +56,15 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
   private def processExpression(element: ScExpression, holder: ProblemsHolder): Unit = {
     element.implicitConversion() match {
       case Some(scalaResolveResult) =>
-        if (usesImportWithWildcard(scalaResolveResult)) {
-          holder.registerProblem(
-            element,
-            s"Implicit conversion ${getNameFrom(scalaResolveResult)} for expression ${element.getText}",
-            ProblemHighlightType.WARNING,
-            new AddImplicitConversionImportQuickFix(element)
-          )
+        withImplicits(scalaResolveResult).foreach { result =>
+          if (usesImportWithWildcard(result)) {
+            holder.registerProblem(
+              element,
+              s"Implicit conversion ${getNameFrom(scalaResolveResult)} for expression ${element.getText}",
+              ProblemHighlightType.WARNING,
+              new AddImplicitConversionImportQuickFix(element)
+            )
+          }
         }
       case None =>
     }
