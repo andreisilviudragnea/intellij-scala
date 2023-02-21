@@ -5,7 +5,7 @@ import org.jetbrains.plugins.scala.ScalaBundle
 import org.jetbrains.plugins.scala.codeInspection.PsiElementVisitorSimple
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddExplicitImportQuickFix.explicitImportText
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddImplicitArgumentImportQuickFix.withImplicits
-import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.getNameFrom
+import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.{getNameFrom, usesImportWithWildcard}
 import org.jetbrains.plugins.scala.extensions.PsiElementExt
 import org.jetbrains.plugins.scala.lang.psi.api.ImplicitArgumentsOwner
 import org.jetbrains.plugins.scala.lang.psi.api.base.{ScConstructorInvocation, ScPrimaryConstructor, ScReference}
@@ -29,7 +29,7 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
       processExpression(element, holder)
       processImplicitArgumentsOwner(element, holder)
     case element: ScReference =>
-      processReference(element,holder)
+      processReference(element, holder)
     case element: ScExpression =>
       processExpression(element, holder)
       processImplicitArgumentsOwner(element, holder)
@@ -40,10 +40,8 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
 
   private def processReference(element: ScReference, holder: ProblemsHolder): Unit = {
     element.multiResolveScala(false).foreach { scalaResolveResult =>
-      val importsUsed = scalaResolveResult.importsUsed
-      // TODO: Revise this condition
       // TODO: Fix still failing import expansions
-      if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+      if (usesImportWithWildcard(scalaResolveResult)) {
         holder.registerProblem(
           element,
           s"Wildcard import ${explicitImportText(scalaResolveResult)} for expression ${element.getText}",
@@ -57,12 +55,10 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
   private def processExpression(element: ScExpression, holder: ProblemsHolder): Unit = {
     element.implicitConversion() match {
       case Some(scalaResolveResult) =>
-        val importsUsed = scalaResolveResult.importsUsed
-        if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-          val importText = getNameFrom(scalaResolveResult)
+        if (usesImportWithWildcard(scalaResolveResult)) {
           holder.registerProblem(
             element,
-            s"Implicit conversion $importText for expression ${element.getText}",
+            s"Implicit conversion ${getNameFrom(scalaResolveResult)} for expression ${element.getText}",
             ProblemHighlightType.WARNING,
             new AddImplicitConversionImportQuickFix(element)
           )
@@ -75,12 +71,10 @@ class RedundantNewCaseClassInspection extends LocalInspectionTool {
     element.findImplicitArguments match {
       case Some(scalaResolveResults) => scalaResolveResults.foreach { scalaResolveResult =>
         withImplicits(scalaResolveResult).foreach { result =>
-          val importsUsed = result.importsUsed
-          if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
-            val importText = getNameFrom(result)
+          if (usesImportWithWildcard(result)) {
             holder.registerProblem(
               element,
-              s"Implicit argument import $importText for expression ${element.getText}",
+              s"Implicit argument import ${getNameFrom(result)} for expression ${element.getText}",
               ProblemHighlightType.WARNING,
               new AddImplicitArgumentImportQuickFix(element)
             )

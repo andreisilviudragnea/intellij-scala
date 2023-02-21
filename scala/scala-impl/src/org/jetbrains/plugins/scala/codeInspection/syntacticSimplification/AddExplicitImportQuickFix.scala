@@ -1,9 +1,9 @@
 package org.jetbrains.plugins.scala.codeInspection.syntacticSimplification
 
 import com.intellij.openapi.project.Project
-import org.jetbrains.plugins.scala.autoImport.GlobalImplicitInstance
 import org.jetbrains.plugins.scala.codeInspection.AbstractFixOnPsiElement
 import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.AddExplicitImportQuickFix.explicitImportText
+import org.jetbrains.plugins.scala.codeInspection.syntacticSimplification.Utils.usesImportWithWildcard
 import org.jetbrains.plugins.scala.lang.psi.ScImportsHolder
 import org.jetbrains.plugins.scala.lang.psi.api.base.ScReference
 import org.jetbrains.plugins.scala.lang.psi.api.toplevel.typedef.ScObject
@@ -12,8 +12,7 @@ import org.jetbrains.plugins.scala.lang.resolve.ScalaResolveResult
 class AddExplicitImportQuickFix(reference: ScReference) extends AbstractFixOnPsiElement("Add explicit import", reference) {
   override protected def doApplyFix(element: ScReference)(implicit project: Project): Unit = {
     element.multiResolveScala(false).foreach { scalaResolveResult =>
-      val importsUsed = scalaResolveResult.importsUsed
-      if (importsUsed.nonEmpty && importsUsed.exists(_.importExpr.exists(_.hasWildcardSelector))) {
+      if (usesImportWithWildcard(scalaResolveResult)) {
         ScImportsHolder(element).addImportForPath(explicitImportText(scalaResolveResult))
         //        executeWriteActionCommand("Add explicit import") {
         //          if (element.isValid) {
